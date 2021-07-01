@@ -1,0 +1,159 @@
+#ifndef BATTERY_SUB_H
+#define BATTERY_SUB_H
+
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/battery_state.hpp>
+
+class BatterySub : public rclcpp::Node {
+
+public:
+    BatterySub();
+
+private:
+
+    rclcpp::Subscription<sensor_msgs::msg::BatteryState>::SharedPtr subscriptor_;
+
+    void msg_callback(const sensor_msgs::msg::BatteryState::SharedPtr msg) const;
+
+};
+
+#endif
+
+#include "BatterySub.h"
+#include <functional>
+
+using std::placeholders::_1;
+
+BatterySub::BatterySub()
+: Node("battery_sub")
+{
+  this->subscriptor_ = this->Node::create_subscription<sensor_msgs::msg::BatteryState>("/battery_state",10,std::bind(&BatterySub::msg_callback, this, _1));
+
+}
+
+void BatterySub::msg_callback(const sensor_msgs::msg::BatteryState::SharedPtr msg) const
+{
+    double voltage = msg->voltage;
+    double percentage = msg->percentage;
+
+    RCLCPP_INFO(this->get_logger(), "current precent : %.2f\t current volt : %.2f",
+    percentage,voltage);
+
+}
+
+
+#include "BatterySub.h"
+
+int main(int argc, char **argv)
+{
+    rclcpp::init(argc, argv);
+    rclcpp::spin(std::make_shared<BatterySub>());
+    rclcpp::shutdown();
+
+    return 0;
+}
+
+
+#ifndef TELEOP_PUB_H
+#define TELEOP_PUB_H
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+
+class TeleopPub : public rclcpp::Node {
+
+public:
+    TeleopPub();
+
+    void forward();
+    void stop();
+
+private:
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+
+    geometry_msgs::msg::Twist msg_;
+
+    void init_msg();
+};
+
+
+#endif
+
+#include "TeleopPub.h"
+
+void TeleopPub::init_msg()
+{
+    this->msg_.linear.x = 0;
+    this->msg_.linear.y = 0;
+    this->msg_.linear.z = 0;
+
+
+    this->msg_.angular.x = 0;
+    this->msg_.angular.y = 0;
+    this->msg_.angular.z = 0;
+
+}
+
+TeleopPub::TeleopPub()
+: Node("teleop_pub")
+{
+    this->publisher_= this->Node::create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",10);
+
+}
+
+void TeleopPub::forward()
+{
+    this->init_msg();
+    this->msg_.linear.x =0.16;
+
+    this->publisher_->publish(this->msg_);
+}
+
+
+void TeleopPub::stop()
+{
+    this->init_msg();
+
+    this->publisher_->publish(this->msg_);
+}
+
+#include<iostream>
+#include "TeleopPub.h"
+
+int main(int argc, char **argv)
+{
+    rclcpp::init(argc, argv);
+    //rclcpp::spin(std::make_shared<TeleopPub>());
+    std::shared_ptr<TeleopPub> teleopPub = std::make_shared<TeleopPub>();
+
+    for (;;) {
+        std::cout<<"input key :";
+        char ch;
+        std::cin >> ch;
+
+        switch(ch) {
+        case 'f': case 'F':
+            teleopPub->forward();
+            break;
+        case 's': case 'S':
+            teleopPub->stop();
+            break;
+        case 'q': case 'Q':
+            teleopPub->stop();
+            goto out;
+        }
+              
+    }
+      out:
+
+    rclcpp::shutdown();
+    return 0;
+}
+   
+
+   
+
+
