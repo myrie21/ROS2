@@ -1,0 +1,174 @@
+#ifndef TELEOP_PUB_H
+#define TELEOP_PUB_H
+#include <memory>
+
+#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/twist.hpp>
+
+
+
+class TeleopPub : public rclcpp::Node {
+public:
+
+    static const int DIRECTION_FORWARD;  
+    static const int DIRECTION_BACKWARD;
+    static const int ROTATE_LEFT;
+    static const int ROTATE_RIGHT;
+    static const int DIRECTION_STOP;
+
+    TeleopPub();
+
+    void move(int operation);
+    //void stop();
+
+private:
+    static const double MAX_SPEED;
+    static const double MAX_RADIAN;
+
+    static const double STEP_SPEED;
+    static const double STEP_RADIAN;
+
+
+    rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr publisher_;
+
+    geometry_msgs::msg::Twist msg_;
+
+    void init_msg();
+};
+
+
+#endif
+
+
+#include<algorithm>
+#include "TeleopPub.h"
+
+using std::min;
+using std::max;
+
+
+const int TeleopPub::DIRECTION_FORWARD = 1;
+const int TeleopPub::DIRECTION_BACKWARD = 2;
+const int TeleopPub::ROTATE_LEFT = 3;
+const int TeleopPub::ROTATE_RIGHT = 4;
+const int TeleopPub::DIRECTION_STOP = 5;
+
+const double TeleopPub::MAX_SPEED = 0.22;
+const double TeleopPub::MAX_RADIAN = 2.84;
+
+const double TeleopPub::STEP_SPEED = 0.02;
+const double TeleopPub::STEP_RADIAN = 0.01;
+
+
+void TeleopPub::init_msg()
+{
+    this->msg_.linear.x = 0;
+    this->msg_.linear.y = 0;
+    this->msg_.linear.z = 0;
+
+
+    this->msg_.angular.x = 0;
+    this->msg_.angular.y = 0;
+    this->msg_.angular.z = 0;
+
+}
+
+TeleopPub::TeleopPub()
+: Node("teleop_pub")
+{
+    this->publisher_= this->Node::create_publisher<geometry_msgs::msg::Twist>("/cmd_vel",10);
+    
+    this->init_msg();
+}
+
+void TeleopPub::move(int operation)
+{
+    //this->init_msg();
+    switch (operation){
+    case DIRECTION_FORWARD:
+        //this->msg_.linear.x += 0.1;
+        // if(this->msg_.linear.x > TeleopPub::MAX_SPEED)
+        //     this->msg_.linear.x = TeleopPub::MAX_SPEED;
+        this->msg_.linear.x = min(TeleopPub::MAX_SPEED, this->msg_.linear.x + STEP_SPEED);
+        RCLCPP_INFO(this->get_logger(), "forward");
+        break;
+    case DIRECTION_BACKWARD:
+        // this->msg_.linear.x += -0.1;
+        // if(this->msg_.linear.x < -TeleopPub::MAX_SPEED)
+        //   this->msg_.linear.x = -TeleopPub::MAX_SPEED;
+        this->msg_.linear.x = max(-TeleopPub::MAX_SPEED, this->msg_.linear.x - STEP_SPEED);
+        RCLCPP_INFO(this->get_logger(), "backward");
+        break;
+    case ROTATE_LEFT:
+        // this->msg_.angular.z += 0.2;
+        // if(this->msg_.angular.z > TeleopPub::MAX_RADIAN)
+        //   this->msg_.angular.z = TeleopPub::MAX_RADIAN;
+        this->msg_.angular.z = min(TeleopPub::MAX_RADIAN, this->msg_.angular.z + STEP_RADIAN);
+        RCLCPP_INFO(this->get_logger(), "left");
+        break;    
+    case ROTATE_RIGHT:
+        // this->msg_.angular.z += -0.2;
+        // if(this->msg_.angular.z < -TeleopPub::MAX_RADIAN)
+        //   this->msg_.angular.z = -TeleopPub::MAX_RADIAN;
+        this->msg_.angular.z = max(TeleopPub::MAX_RADIAN, this->msg_.angular.z - STEP_RADIAN);
+        RCLCPP_INFO(this->get_logger(), "right");
+        break;
+
+    case DIRECTION_STOP:
+        this->init_msg();
+        break;
+    }
+    // this->msg_.linear.x =0.16;
+
+    
+    this->publisher_->publish(this->msg_);
+}
+
+
+
+#include<iostream>
+#include "TeleopPub.h"
+
+int main(int argc, char **argv)
+{
+    rclcpp::init(argc, argv);
+    //rclcpp::spin(std::make_shared<TeleopPub>());
+    std::shared_ptr<TeleopPub> teleopPub = std::make_shared<TeleopPub>();
+
+    for (;;) {
+        std::cout<<"input key :";
+        char ch;
+        std::cin >> ch;
+
+        switch(ch) {
+        case 'i': case 'I':
+            teleopPub->move(TeleopPub::DIRECTION_FORWARD);
+            break;
+        case 'm': case 'M':
+            teleopPub->move(TeleopPub::DIRECTION_BACKWARD);
+            break;
+        case 'j': case 'J':
+            teleopPub->move(TeleopPub::ROTATE_LEFT);
+            break;
+        case 'k': case 'K':
+            teleopPub->move(TeleopPub::ROTATE_RIGHT);
+            break;
+        case 's': case 'S':
+            teleopPub->move(TeleopPub::DIRECTION_STOP);
+            break;
+        case 'q': case 'Q':
+            teleopPub->move(TeleopPub::DIRECTION_STOP);
+            goto out;
+        }
+              
+    }
+      out:
+
+    rclcpp::shutdown();
+    return 0;
+}
+   
+
+
+
+
